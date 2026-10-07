@@ -1,1297 +1,956 @@
 import React, {
+  useCallback,
   useEffect,
   useRef,
-  useState
+  useState,
 } from "react";
 
+import * as signalR from "@microsoft/signalr";
+
 import {
-  Activity,
-  ArrowDown,
-  ArrowUp,
-  BarChart3,
-  Bell,
-  BrainCircuit,
-  Check,
-  ChevronDown,
-  Clock3,
-  Crosshair,
-  Gauge,
-  Layers3,
-  LayoutDashboard,
-  LineChart,
-  Menu,
-  Radio,
-  RefreshCw,
-  ShieldCheck,
-  Target,
-  TrendingDown,
-  TrendingUp,
-  X,
-  Zap
-} from "lucide-react";
+  createChart,
+  CandlestickSeries,
+} from "lightweight-charts";
 
 
 // ============================================================
-// SIMULATION DATA
-// NANTI DIGANTI DENGAN API BACKEND KAMU
+// BIQUOTE CONFIG
 // ============================================================
 
-const initialSignal = {
-  symbol: "XAUUSD",
+const BIQUOTE_BASE_URL = "https://biquote.io";
 
-  direction: "BUY",
+const BIQUOTE_WS_URL =
+  "https://biquote.io/hubs/tick";
 
-  status: "ACTIVE",
+const SYMBOL = "XAUUSD";
 
-  score: 87,
 
-  entryLow: 4982.0,
-  entryHigh: 4984.0,
+// ============================================================
+// TIMEFRAME CONFIG
+// ============================================================
 
-  sl: 4932.0,
-
-  tp1: 5052.0,
-  tp2: 5132.0,
-
-  rr1: "1 : 1.40",
-  rr2: "1 : 3.00",
-
-  h1Bias: "BULLISH",
-
-  liquidity: "SWEPT",
-
-  structure: "CHoCH",
-
-  displacement: "CONFIRMED",
-
-  fvg: "VALID",
-
-  orderBlock: "VALID",
-
-  session: "LONDON",
-
-  volatility: "NORMAL",
-
-  created: "14:35:02 WIB",
-
-  age: 3
+const TIMEFRAMES = {
+  "1m": 60,
+  "5m": 300,
+  "15m": 900,
+  "30m": 1800,
+  "1H": 3600,
+  "4H": 14400,
+  "1D": 86400,
 };
 
+const DEFAULT_TIMEFRAME = "1m";
 
-const signalHistory = [
-  {
-    time: "14:35",
-    type: "BUY",
-    entry: "4982–4984",
-    result: "ACTIVE",
-    pnl: "-"
-  },
-  {
-    time: "13:00",
-    type: "SELL",
-    entry: "4971–4973",
-    result: "TP1",
-    pnl: "+70 pips"
-  },
-  {
-    time: "12:00",
-    type: "BUY",
-    entry: "4960–4962",
-    result: "TP2",
-    pnl: "+150 pips"
-  },
-  {
-    time: "11:00",
-    type: "SELL",
-    entry: "4951–4953",
-    result: "SL",
-    pnl: "-50 pips"
-  },
-  {
-    time: "10:00",
-    type: "BUY",
-    entry: "4942–4944",
-    result: "TP1",
-    pnl: "+70 pips"
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function getTimeframeSeconds(timeframe) {
+  return TIMEFRAMES[timeframe] || 60;
+}
+
+
+function getCandleTime(timestamp, timeframe) {
+  const seconds = getTimeframeSeconds(timeframe);
+
+  return Math.floor(timestamp / seconds) * seconds;
+}
+
+
+function formatPrice(price) {
+  if (price === null || price === undefined) {
+    return "---";
   }
-];
+
+  return Number(price).toFixed(2);
+}
 
 
-// ============================================================
-// TRADINGVIEW CHART
-// ============================================================
+function formatTime(timestamp) {
+  if (!timestamp) {
+    return "--:--:--";
+  }
 
-function TradingViewChart() {
-  const container = useRef(null);
+  const date = new Date(timestamp);
 
-  useEffect(() => {
-    if (!container.current) return;
-
-    container.current.innerHTML = "";
-
-    const wrapper = document.createElement("div");
-
-    wrapper.className = "tradingview-widget-container";
-
-    wrapper.style.width = "100%";
-    wrapper.style.height = "100%";
-
-    const chart = document.createElement("div");
-
-    chart.className =
-      "tradingview-widget-container__widget";
-
-    chart.style.width = "100%";
-    chart.style.height = "100%";
-
-    wrapper.appendChild(chart);
-
-    const script = document.createElement("script");
-
-    script.src =
-      "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-
-    script.type = "text/javascript";
-
-    script.async = true;
-
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-
-      symbol: "OANDA:XAUUSD",
-
-      interval: "5",
-
-      timezone: "Asia/Jakarta",
-
-      theme: "dark",
-
-      style: "1",
-
-      locale: "id",
-
-      allow_symbol_change: true,
-
-      calendar: false,
-
-      hide_side_toolbar: false,
-
-      hide_top_toolbar: false,
-
-      hide_legend: false,
-
-      hide_volume: false,
-
-      withdateranges: true,
-
-      save_image: false,
-
-      details: true,
-
-      hotlist: false,
-
-      studies: [
-        "Volume@tv-basicstudies"
-      ]
-    });
-
-    wrapper.appendChild(script);
-
-    container.current.appendChild(wrapper);
-
-    return () => {
-      if (container.current) {
-        container.current.innerHTML = "";
-      }
-    };
-  }, []);
-
-  return (
-    <div
-      ref={container}
-      className="chart-container"
-    />
-  );
+  return date.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Jakarta",
+  });
 }
 
 
 // ============================================================
-// TOP HEADER
-// ============================================================
-
-function Header({
-  currentPrice,
-  mobileMenu,
-  setMobileMenu
-}) {
-  return (
-    <header className="topbar">
-
-      <div className="brand">
-
-        <div className="brand-mark">
-          <BrainCircuit size={21} />
-        </div>
-
-        <div>
-          <div className="brand-title">
-            PRO SIGNAL FX
-          </div>
-
-          <div className="brand-subtitle">
-            AI • SMART MONEY CONCEPT
-          </div>
-        </div>
-
-      </div>
-
-
-      <div className="header-market">
-
-        <div className="market-symbol">
-          XAUUSD
-        </div>
-
-        <div className="market-price">
-          {currentPrice.toFixed(2)}
-        </div>
-
-        <div className="market-live">
-          <span />
-          LIVE
-        </div>
-
-      </div>
-
-
-      <div className="header-actions">
-
-        <div className="header-clock">
-          <Clock3 size={15} />
-          <span>
-            {new Date().toLocaleTimeString(
-              "id-ID",
-              {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: false
-              }
-            )} WIB
-          </span>
-        </div>
-
-        <button className="icon-button">
-          <Bell size={18} />
-        </button>
-
-        <button
-          className="mobile-button"
-          onClick={() =>
-            setMobileMenu(!mobileMenu)
-          }
-        >
-          <Menu size={20} />
-        </button>
-
-      </div>
-
-    </header>
-  );
-}
-
-
-// ============================================================
-// MARKET BAR
-// ============================================================
-
-function MarketBar({
-  currentPrice
-}) {
-  const change = 12.38;
-
-  return (
-    <div className="market-bar">
-
-      <div className="market-stat">
-
-        <span className="stat-label">
-          MARKET
-        </span>
-
-        <strong>
-          GOLD / XAUUSD
-        </strong>
-
-      </div>
-
-
-      <div className="market-stat">
-
-        <span className="stat-label">
-          PRICE
-        </span>
-
-        <strong>
-          {currentPrice.toFixed(2)}
-        </strong>
-
-      </div>
-
-
-      <div className="market-stat">
-
-        <span className="stat-label">
-          CHANGE
-        </span>
-
-        <strong className="positive">
-          +{change.toFixed(2)}
-        </strong>
-
-      </div>
-
-
-      <div className="market-stat">
-
-        <span className="stat-label">
-          SESSION
-        </span>
-
-        <strong>
-          LONDON
-        </strong>
-
-      </div>
-
-
-      <div className="market-stat">
-
-        <span className="stat-label">
-          VOLATILITY
-        </span>
-
-        <strong className="normal">
-          NORMAL
-        </strong>
-
-      </div>
-
-
-      <div className="market-live-large">
-
-        <Radio size={15} />
-
-        MARKET LIVE
-
-      </div>
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// AI SCORE
-// ============================================================
-
-function ScoreCard({
-  score
-}) {
-  return (
-    <div className="score-card">
-
-      <div className="score-header">
-
-        <div>
-          <span className="panel-kicker">
-            AI CONFIDENCE
-          </span>
-
-          <h2>
-            Market Score
-          </h2>
-        </div>
-
-        <Gauge size={21} />
-
-      </div>
-
-
-      <div className="score-body">
-
-        <div
-          className="score-circle"
-          style={{
-            "--score": `${score * 3.6}deg`
-          }}
-        >
-          <div className="score-inner">
-
-            <strong>
-              {score}
-            </strong>
-
-            <span>
-              / 100
-            </span>
-
-          </div>
-        </div>
-
-
-        <div className="score-description">
-
-          <div className="score-status">
-            HIGH PROBABILITY
-          </div>
-
-          <p>
-            Struktur market mendukung
-            setup BUY dengan konfirmasi
-            liquidity dan displacement.
-          </p>
-
-        </div>
-
-      </div>
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// SIGNAL CARD
-// ============================================================
-
-function SignalCard({
-  signal,
-  currentPrice
-}) {
-  const isBuy =
-    signal.direction === "BUY";
-
-  const distance =
-    currentPrice -
-    signal.entryHigh;
-
-  const insideEntry =
-    currentPrice >= signal.entryLow &&
-    currentPrice <= signal.entryHigh;
-
-  return (
-    <div className="signal-card">
-
-      <div className="signal-card-header">
-
-        <div>
-
-          <span className="panel-kicker">
-            ACTIVE SIGNAL
-          </span>
-
-          <div className="signal-direction">
-
-            <div
-              className={
-                isBuy
-                  ? "direction-icon buy"
-                  : "direction-icon sell"
-              }
-            >
-              {isBuy ? (
-                <ArrowUp size={25} />
-              ) : (
-                <ArrowDown size={25} />
-              )}
-            </div>
-
-            <div>
-
-              <h2>
-                {signal.direction}
-              </h2>
-
-              <span>
-                {signal.symbol}
-              </span>
-
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <div className="active-pill">
-          <span />
-          ACTIVE
-        </div>
-
-      </div>
-
-
-      <div className="signal-price">
-
-        <span>
-          CURRENT PRICE
-        </span>
-
-        <strong>
-          {currentPrice.toFixed(2)}
-        </strong>
-
-      </div>
-
-
-      <div className="entry-box">
-
-        <div className="entry-label">
-          ENTRY ZONE
-        </div>
-
-        <div className="entry-value">
-          {signal.entryLow.toFixed(2)}
-          <span> — </span>
-          {signal.entryHigh.toFixed(2)}
-        </div>
-
-        <div
-          className={
-            insideEntry
-              ? "entry-status valid"
-              : distance > 0
-                ? "entry-status caution"
-                : "entry-status wait"
-          }
-        >
-          {insideEntry
-            ? "PRICE INSIDE ENTRY ZONE"
-            : distance > 0
-              ? "PRICE ABOVE ENTRY ZONE"
-              : "WAITING FOR ENTRY"}
-        </div>
-
-      </div>
-
-
-      <div className="trade-levels">
-
-        <div className="trade-level">
-
-          <span>
-            STOP LOSS
-          </span>
-
-          <strong className="sl">
-            {signal.sl.toFixed(2)}
-          </strong>
-
-        </div>
-
-
-        <div className="trade-level">
-
-          <span>
-            TAKE PROFIT 1
-          </span>
-
-          <strong className="tp">
-            {signal.tp1.toFixed(2)}
-          </strong>
-
-        </div>
-
-
-        <div className="trade-level">
-
-          <span>
-            TAKE PROFIT 2
-          </span>
-
-          <strong className="tp">
-            {signal.tp2.toFixed(2)}
-          </strong>
-
-        </div>
-
-      </div>
-
-
-      <div className="rr-row">
-
-        <div>
-          RR TP1
-          <strong>
-            {signal.rr1}
-          </strong>
-        </div>
-
-        <div>
-          RR TP2
-          <strong>
-            {signal.rr2}
-          </strong>
-        </div>
-
-        <div>
-          AGE
-          <strong>
-            {signal.age}s
-          </strong>
-        </div>
-
-      </div>
-
-
-      <div className="signal-footer">
-
-        <div>
-          <Clock3 size={14} />
-          Created {signal.created}
-        </div>
-
-        <div className="signal-verified">
-          <ShieldCheck size={14} />
-          AI VERIFIED
-        </div>
-
-      </div>
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// MARKET ANALYSIS
-// ============================================================
-
-function AnalysisPanel({
-  signal
-}) {
-  const items = [
-    {
-      name: "H1 BIAS",
-      value: signal.h1Bias,
-      icon: TrendingUp,
-      positive: true
-    },
-    {
-      name: "LIQUIDITY",
-      value: signal.liquidity,
-      icon: Zap,
-      positive: true
-    },
-    {
-      name: "STRUCTURE",
-      value: signal.structure,
-      icon: Activity,
-      positive: true
-    },
-    {
-      name: "DISPLACEMENT",
-      value: signal.displacement,
-      icon: BarChart3,
-      positive: true
-    },
-    {
-      name: "FAIR VALUE GAP",
-      value: signal.fvg,
-      icon: Layers3,
-      positive: true
-    },
-    {
-      name: "ORDER BLOCK",
-      value: signal.orderBlock,
-      icon: Target,
-      positive: true
-    }
-  ];
-
-  return (
-    <div className="analysis-panel">
-
-      <div className="panel-heading">
-
-        <div>
-
-          <span className="panel-kicker">
-            AI MARKET ANALYSIS
-          </span>
-
-          <h2>
-            Smart Money Structure
-          </h2>
-
-        </div>
-
-        <BrainCircuit size={21} />
-
-      </div>
-
-
-      <div className="analysis-grid">
-
-        {items.map((item) => {
-
-          const Icon = item.icon;
-
-          return (
-            <div
-              className="analysis-item"
-              key={item.name}
-            >
-
-              <div className="analysis-icon">
-                <Icon size={16} />
-              </div>
-
-              <div className="analysis-text">
-
-                <span>
-                  {item.name}
-                </span>
-
-                <strong>
-                  {item.value}
-                </strong>
-
-              </div>
-
-              <Check
-                size={16}
-                className="analysis-check"
-              />
-
-            </div>
-          );
-
-        })}
-
-      </div>
-
-
-      <div className="ai-explanation">
-
-        <div className="explanation-title">
-          <Zap size={15} />
-          AI DECISION
-        </div>
-
-        <p>
-          Harga melakukan liquidity sweep
-          pada area low sebelumnya kemudian
-          membentuk displacement bullish.
-          Struktur M5 menunjukkan CHoCH dan
-          terdapat FVG yang masih valid untuk
-          retracement.
-        </p>
-
-      </div>
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// HISTORY
-// ============================================================
-
-function SignalHistory() {
-  return (
-    <div className="history-panel">
-
-      <div className="panel-heading">
-
-        <div>
-
-          <span className="panel-kicker">
-            RECENT SIGNALS
-          </span>
-
-          <h2>
-            Signal History
-          </h2>
-
-        </div>
-
-        <button className="small-button">
-          View All
-          <ChevronDown size={14} />
-        </button>
-
-      </div>
-
-
-      <div className="history-table">
-
-        <div className="history-header">
-
-          <span>
-            TIME
-          </span>
-
-          <span>
-            SIGNAL
-          </span>
-
-          <span>
-            ENTRY
-          </span>
-
-          <span>
-            RESULT
-          </span>
-
-          <span>
-            P/L
-          </span>
-
-        </div>
-
-
-        {signalHistory.map(
-          (item, index) => {
-
-            const buy =
-              item.type === "BUY";
-
-            return (
-              <div
-                className="history-row"
-                key={index}
-              >
-
-                <span className="history-time">
-                  {item.time}
-                </span>
-
-
-                <span
-                  className={
-                    buy
-                      ? "history-signal buy-text"
-                      : "history-signal sell-text"
-                  }
-                >
-
-                  {buy ? (
-                    <ArrowUp size={14} />
-                  ) : (
-                    <ArrowDown size={14} />
-                  )}
-
-                  {item.type}
-
-                </span>
-
-
-                <span>
-                  {item.entry}
-                </span>
-
-
-                <span>
-
-                  <span
-                    className={
-                      item.result === "SL"
-                        ? "result-badge loss"
-                        : item.result === "ACTIVE"
-                          ? "result-badge active"
-                          : "result-badge win"
-                    }
-                  >
-                    {item.result}
-                  </span>
-
-                </span>
-
-
-                <span
-                  className={
-                    item.pnl.startsWith("-")
-                      ? "pnl loss-text"
-                      : item.pnl === "-"
-                        ? ""
-                        : "pnl win-text"
-                  }
-                >
-                  {item.pnl}
-                </span>
-
-              </div>
-            );
-          }
-        )}
-
-      </div>
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// MARKET STATUS
-// ============================================================
-
-function MarketStatus({
-  currentPrice
-}) {
-  return (
-    <div className="status-panel">
-
-      <div className="status-item">
-
-        <div className="status-icon">
-          <LineChart size={16} />
-        </div>
-
-        <div>
-          <span>
-            XAUUSD PRICE
-          </span>
-
-          <strong>
-            {currentPrice.toFixed(2)}
-          </strong>
-        </div>
-
-        <div className="status-online">
-          ONLINE
-        </div>
-
-      </div>
-
-
-      <div className="status-item">
-
-        <div className="status-icon">
-          <RefreshCw size={16} />
-        </div>
-
-        <div>
-          <span>
-            DATA ENGINE
-          </span>
-
-          <strong>
-            CONNECTED
-          </strong>
-        </div>
-
-        <div className="status-online">
-          OK
-        </div>
-
-      </div>
-
-
-      <div className="status-item">
-
-        <div className="status-icon">
-          <BrainCircuit size={16} />
-        </div>
-
-        <div>
-          <span>
-            AI ENGINE
-          </span>
-
-          <strong>
-            READY
-          </strong>
-        </div>
-
-        <div className="status-online">
-          ACTIVE
-        </div>
-
-      </div>
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// MAIN APP
+// APP
 // ============================================================
 
 export default function App() {
+  const chartContainerRef = useRef(null);
 
-  const [currentPrice, setCurrentPrice] =
-    useState(4985.42);
+  const chartRef = useRef(null);
 
-  const [signal, setSignal] =
-    useState(initialSignal);
+  const candleSeriesRef = useRef(null);
 
-  const [mobileMenu, setMobileMenu] =
-    useState(false);
+  const connectionRef = useRef(null);
+
+  const currentCandleRef = useRef(null);
+
+  const timeframeRef = useRef(DEFAULT_TIMEFRAME);
+
+  const mountedRef = useRef(false);
 
 
-  // ----------------------------------------------------------
-  // SIMULATED PRICE
-  // NANTI DIHAPUS SAAT SUDAH CONNECT BACKEND
-  // ----------------------------------------------------------
+  const [timeframe, setTimeframe] =
+    useState(DEFAULT_TIMEFRAME);
+
+  const [price, setPrice] =
+    useState(null);
+
+  const [bid, setBid] =
+    useState(null);
+
+  const [ask, setAsk] =
+    useState(null);
+
+  const [spread, setSpread] =
+    useState(null);
+
+  const [lastTickTime, setLastTickTime] =
+    useState(null);
+
+  const [connectionStatus, setConnectionStatus] =
+    useState("CONNECTING");
+
+  const [error, setError] =
+    useState("");
+
+  const [tickCount, setTickCount] =
+    useState(0);
+
+
+  // ==========================================================
+  // KEEP TIMEFRAME REF UPDATED
+  // ==========================================================
 
   useEffect(() => {
+    timeframeRef.current = timeframe;
+  }, [timeframe]);
 
-    const timer = setInterval(() => {
 
-      setCurrentPrice((previous) => {
+  // ==========================================================
+  // CREATE CHART
+  // ==========================================================
 
-        const movement =
-          (Math.random() - 0.5) * 1.2;
+  useEffect(() => {
+    if (!chartContainerRef.current) {
+      return;
+    }
 
-        return Number(
-          (previous + movement).toFixed(2)
-        );
+    const container = chartContainerRef.current;
 
+    const chart = createChart(container, {
+      width: container.clientWidth,
+      height: container.clientHeight,
+
+      layout: {
+        background: {
+          color: "#050505",
+        },
+
+        textColor: "#8d8d8d",
+      },
+
+      grid: {
+        vertLines: {
+          color: "#111111",
+        },
+
+        horzLines: {
+          color: "#111111",
+        },
+      },
+
+      crosshair: {
+        mode: 1,
+
+        vertLine: {
+          color: "#555555",
+          width: 1,
+          style: 2,
+        },
+
+        horzLine: {
+          color: "#555555",
+          width: 1,
+          style: 2,
+        },
+      },
+
+      rightPriceScale: {
+        borderColor: "#222222",
+
+        scaleMargins: {
+          top: 0.08,
+          bottom: 0.08,
+        },
+      },
+
+      timeScale: {
+        borderColor: "#222222",
+
+        timeVisible: true,
+
+        secondsVisible: false,
+
+        rightOffset: 8,
+
+        barSpacing: 8,
+
+        minBarSpacing: 2,
+      },
+
+      handleScroll: {
+        mouseWheel: true,
+
+        pressedMouseMove: true,
+
+        horzTouchDrag: true,
+
+        vertTouchDrag: true,
+      },
+
+      handleScale: {
+        axisPressedMouseMove: true,
+
+        mouseWheel: true,
+
+        pinch: true,
+      },
+    });
+
+
+    const series = chart.addSeries(
+      CandlestickSeries,
+      {
+        upColor: "#00c853",
+
+        downColor: "#ff3b30",
+
+        borderUpColor: "#00c853",
+
+        borderDownColor: "#ff3b30",
+
+        wickUpColor: "#00c853",
+
+        wickDownColor: "#ff3b30",
+
+        priceLineVisible: true,
+
+        lastValueVisible: true,
+      }
+    );
+
+
+    chartRef.current = chart;
+
+    candleSeriesRef.current = series;
+
+
+    const resizeObserver =
+      new ResizeObserver(() => {
+        if (!chartContainerRef.current) {
+          return;
+        }
+
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+
+          height: chartContainerRef.current.clientHeight,
+        });
       });
 
-    }, 1500);
+
+    resizeObserver.observe(container);
 
 
-    return () => clearInterval(timer);
+    return () => {
+      resizeObserver.disconnect();
 
+      chart.remove();
+
+      chartRef.current = null;
+
+      candleSeriesRef.current = null;
+    };
   }, []);
 
 
-  // ----------------------------------------------------------
-  // SIGNAL AGE
-  // ----------------------------------------------------------
+  // ==========================================================
+  // LOAD HISTORICAL CANDLES
+  // ==========================================================
+
+  const loadHistoricalCandles = useCallback(
+    async (selectedTimeframe) => {
+      if (!candleSeriesRef.current) {
+        return;
+      }
+
+      try {
+        setError("");
+
+        const intervalMap = {
+          "1m": "1m",
+          "5m": "5m",
+          "15m": "15m",
+          "30m": "30m",
+          "1H": "1h",
+          "4H": "4h",
+          "1D": "1d",
+        };
+
+        const interval =
+          intervalMap[selectedTimeframe] || "1m";
+
+
+        const url =
+          `${BIQUOTE_BASE_URL}/api/${SYMBOL}/ohlc` +
+          `?interval=${interval}&limit=300`;
+
+
+        const response =
+          await fetch(url);
+
+
+        if (!response.ok) {
+          throw new Error(
+            `HTTP ${response.status}`
+          );
+        }
+
+
+        const data =
+          await response.json();
+
+
+        if (!data.bars) {
+          throw new Error(
+            "Data candle tidak ditemukan."
+          );
+        }
+
+
+        const bars = data.bars
+          .slice()
+          .reverse()
+          .map((bar) => ({
+            time:
+              Math.floor(
+                new Date(bar.openTime).getTime() /
+                  1000
+              ),
+
+            open: Number(bar.open),
+
+            high: Number(bar.high),
+
+            low: Number(bar.low),
+
+            close: Number(bar.close),
+          }));
+
+
+        candleSeriesRef.current.setData(
+          bars
+        );
+
+
+        // ------------------------------------------------------
+        // Set current candle reference
+        // ------------------------------------------------------
+
+        const lastBar =
+          bars[bars.length - 1];
+
+
+        if (lastBar) {
+          currentCandleRef.current = {
+            time: lastBar.time,
+
+            open: lastBar.open,
+
+            high: lastBar.high,
+
+            low: lastBar.low,
+
+            close: lastBar.close,
+          };
+        }
+
+
+        chartRef.current?.timeScale().fitContent();
+
+
+      } catch (err) {
+        console.error(
+          "Historical candle error:",
+          err
+        );
+
+        setError(
+          "Gagal mengambil historical candle."
+        );
+      }
+    },
+    []
+  );
+
+
+  // ==========================================================
+  // UPDATE CANDLE FROM TICK
+  // ==========================================================
+
+  const processTick = useCallback(
+    (tick) => {
+      if (!tick) {
+        return;
+      }
+
+
+      if (
+        String(tick.symbol).toUpperCase() !==
+        SYMBOL
+      ) {
+        return;
+      }
+
+
+      const mid = Number(tick.mid);
+
+
+      if (!Number.isFinite(mid)) {
+        return;
+      }
+
+
+      const currentTime =
+        Math.floor(
+          new Date(tick.timestamp).getTime() /
+            1000
+        );
+
+
+      if (!Number.isFinite(currentTime)) {
+        return;
+      }
+
+
+      const selectedTimeframe =
+        timeframeRef.current;
+
+
+      const candleTime =
+        getCandleTime(
+          currentTime,
+          selectedTimeframe
+        );
+
+
+      // ========================================================
+      // UPDATE UI PRICE
+      // ========================================================
+
+      if (mountedRef.current) {
+        setPrice(mid);
+
+        setBid(
+          tick.bid !== undefined
+            ? Number(tick.bid)
+            : null
+        );
+
+        setAsk(
+          tick.ask !== undefined
+            ? Number(tick.ask)
+            : null
+        );
+
+        setSpread(
+          tick.spread !== undefined
+            ? Number(tick.spread)
+            : null
+        );
+
+        setLastTickTime(
+          tick.timestamp
+        );
+
+        setTickCount(
+          (value) => value + 1
+        );
+      }
+
+
+      // ========================================================
+      // CURRENT CANDLE
+      // ========================================================
+
+      const existing =
+        currentCandleRef.current;
+
+
+      // ========================================================
+      // NEW CANDLE
+      // ========================================================
+
+      if (
+        !existing ||
+        candleTime > existing.time
+      ) {
+        const newCandle = {
+          time: candleTime,
+
+          open: mid,
+
+          high: mid,
+
+          low: mid,
+
+          close: mid,
+        };
+
+
+        currentCandleRef.current =
+          newCandle;
+
+
+        candleSeriesRef.current?.update(
+          newCandle
+        );
+
+
+        return;
+      }
+
+
+      // ========================================================
+      // IGNORE OLD TICK
+      // ========================================================
+
+      if (
+        candleTime <
+        existing.time
+      ) {
+        return;
+      }
+
+
+      // ========================================================
+      // UPDATE EXISTING CANDLE
+      // ========================================================
+
+      const updatedCandle = {
+        time: existing.time,
+
+        open: existing.open,
+
+        high: Math.max(
+          existing.high,
+          mid
+        ),
+
+        low: Math.min(
+          existing.low,
+          mid
+        ),
+
+        close: mid,
+      };
+
+
+      currentCandleRef.current =
+        updatedCandle;
+
+
+      candleSeriesRef.current?.update(
+        updatedCandle
+      );
+    },
+    []
+  );
+
+
+  // ==========================================================
+  // CONNECT BIQUOTE WEBSOCKET
+  // ==========================================================
+
+  const connectWebSocket = useCallback(
+    async () => {
+      try {
+        setConnectionStatus(
+          "CONNECTING"
+        );
+
+        setError("");
+
+
+        // ------------------------------------------------------
+        // Remove previous connection
+        // ------------------------------------------------------
+
+        if (connectionRef.current) {
+          try {
+            await connectionRef.current.stop();
+          } catch {
+            // Ignore
+          }
+        }
+
+
+        // ------------------------------------------------------
+        // Create SignalR connection
+        // ------------------------------------------------------
+
+        const connection =
+          new signalR.HubConnectionBuilder()
+            .withUrl(BIQUOTE_WS_URL)
+            .withAutomaticReconnect([
+              0,
+              2000,
+              5000,
+              10000,
+              30000,
+            ])
+            .configureLogging(
+              signalR.LogLevel.Warning
+            )
+            .build();
+
+
+        connectionRef.current =
+          connection;
+
+
+        // ------------------------------------------------------
+        // Receive tick
+        // ------------------------------------------------------
+
+        connection.on(
+          "ReceiveTick",
+          (tick) => {
+            processTick(tick);
+          }
+        );
+
+
+        // ------------------------------------------------------
+        // Connection events
+        // ------------------------------------------------------
+
+        connection.onreconnecting(() => {
+          if (mountedRef.current) {
+            setConnectionStatus(
+              "RECONNECTING"
+            );
+          }
+        });
+
+
+        connection.onreconnected(
+          async () => {
+            if (!mountedRef.current) {
+              return;
+            }
+
+
+            setConnectionStatus(
+              "LIVE"
+            );
+
+
+            try {
+              await connection.invoke(
+                "Subscribe",
+                [SYMBOL]
+              );
+            } catch (err) {
+              console.error(
+                "Subscribe error after reconnect:",
+                err
+              );
+            }
+          }
+        );
+
+
+        connection.onclose(() => {
+          if (mountedRef.current) {
+            setConnectionStatus(
+              "DISCONNECTED"
+            );
+          }
+        });
+
+
+        // ------------------------------------------------------
+        // Start connection
+        // ------------------------------------------------------
+
+        await connection.start();
+
+
+        // ------------------------------------------------------
+        // Subscribe XAUUSD
+        // ------------------------------------------------------
+
+        await connection.invoke(
+          "Subscribe",
+          [SYMBOL]
+        );
+
+
+        if (mountedRef.current) {
+          setConnectionStatus(
+            "LIVE"
+          );
+        }
+
+
+      } catch (err) {
+        console.error(
+          "WebSocket error:",
+          err
+        );
+
+
+        if (mountedRef.current) {
+          setConnectionStatus(
+            "ERROR"
+          );
+
+          setError(
+            "WebSocket biquote gagal terhubung."
+          );
+        }
+      }
+    },
+    [processTick]
+  );
+
+
+  // ==========================================================
+  // INITIAL LOAD
+  // ==========================================================
 
   useEffect(() => {
-
-    const timer = setInterval(() => {
-
-      setSignal((previous) => ({
-        ...previous,
-        age: previous.age + 1
-      }));
-
-    }, 1000);
+    mountedRef.current = true;
 
 
-    return () => clearInterval(timer);
+    loadHistoricalCandles(
+      DEFAULT_TIMEFRAME
+    );
 
-  }, []);
 
+    connectWebSocket();
+
+
+    return () => {
+      mountedRef.current = false;
+
+
+      if (connectionRef.current) {
+        connectionRef.current
+          .stop()
+          .catch(() => {});
+      }
+
+
+      connectionRef.current = null;
+    };
+  }, [
+    connectWebSocket,
+    loadHistoricalCandles,
+  ]);
+
+
+  // ==========================================================
+  // TIMEFRAME CHANGE
+  // ==========================================================
+
+  useEffect(() => {
+    if (!mountedRef.current) {
+      return;
+    }
+
+
+    currentCandleRef.current = null;
+
+
+    loadHistoricalCandles(timeframe);
+
+  }, [
+    timeframe,
+    loadHistoricalCandles,
+  ]);
+
+
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <div className="app">
 
-      <Header
-        currentPrice={currentPrice}
-        mobileMenu={mobileMenu}
-        setMobileMenu={setMobileMenu}
-      />
+      {/* ======================================================
+          TOP BAR
+      ====================================================== */}
 
+      <header className="topbar">
 
-      <aside
-        className={
-          mobileMenu
-            ? "sidebar mobile-open"
-            : "sidebar"
-        }
-      >
+        <div className="symbol">
 
-        <div className="sidebar-section">
+          <span className="symbol-name">
+            XAUUSD
+          </span>
 
-          <div className="sidebar-label">
-            TERMINAL
-          </div>
-
-          <button className="nav-item active">
-            <LayoutDashboard size={17} />
-            Dashboard
-          </button>
-
-          <button className="nav-item">
-            <LineChart size={17} />
-            Live Chart
-          </button>
-
-          <button className="nav-item">
-            <Crosshair size={17} />
-            Signals
-          </button>
-
-          <button className="nav-item">
-            <BarChart3 size={17} />
-            Performance
-          </button>
+          <span className="symbol-label">
+            GOLD / US DOLLAR
+          </span>
 
         </div>
 
 
-        <div className="sidebar-section">
+        <div className="price-block">
 
-          <div className="sidebar-label">
-            AI SYSTEM
-          </div>
+          <span className="main-price">
+            {formatPrice(price)}
+          </span>
 
-          <button className="nav-item">
-            <BrainCircuit size={17} />
-            AI Analysis
-          </button>
-
-          <button className="nav-item">
-            <Activity size={17} />
-            Market Structure
-          </button>
-
-          <button className="nav-item">
-            <ShieldCheck size={17} />
-            Risk Monitor
-          </button>
+          <span className="price-label">
+            MID
+          </span>
 
         </div>
 
 
-        <div className="sidebar-bottom">
+        <div className="quote">
 
-          <div className="system-status">
+          <div>
+            <span>BID</span>
+            <strong>
+              {formatPrice(bid)}
+            </strong>
+          </div>
 
-            <span className="status-dot" />
+          <div>
+            <span>ASK</span>
+            <strong>
+              {formatPrice(ask)}
+            </strong>
+          </div>
 
-            <div>
-              <strong>
-                SYSTEM ONLINE
-              </strong>
-
-              <small>
-                AI engine operational
-              </small>
-            </div>
-
+          <div>
+            <span>SPREAD</span>
+            <strong>
+              {spread !== null
+                ? spread.toFixed(2)
+                : "---"}
+            </strong>
           </div>
 
         </div>
 
-      </aside>
+
+        <div className="status">
+
+          <span
+            className={`status-dot ${
+              connectionStatus === "LIVE"
+                ? "live"
+                : ""
+            }`}
+          />
+
+          <span>
+            {connectionStatus}
+          </span>
+
+        </div>
+
+      </header>
 
 
-      <main className="main">
+      {/* ======================================================
+          TOOLBAR
+      ====================================================== */}
 
-        <MarketBar
-          currentPrice={currentPrice}
+      <div className="toolbar">
+
+        <div className="timeframes">
+
+          {Object.keys(TIMEFRAMES).map(
+            (item) => (
+              <button
+                key={item}
+                className={
+                  timeframe === item
+                    ? "active"
+                    : ""
+                }
+                onClick={() => {
+                  setTimeframe(item);
+                }}
+              >
+                {item}
+              </button>
+            )
+          )}
+
+        </div>
+
+
+        <div className="info">
+
+          <span>
+            {tickCount.toLocaleString(
+              "en-US"
+            )} ticks
+          </span>
+
+          <span>
+            {lastTickTime
+              ? formatTime(lastTickTime)
+              : "--:--:--"}{" "}
+            WIB
+          </span>
+
+        </div>
+
+      </div>
+
+
+      {/* ======================================================
+          CHART
+      ====================================================== */}
+
+      <main className="chart-wrapper">
+
+        <div
+          ref={chartContainerRef}
+          className="chart"
         />
 
 
-        <section className="dashboard-grid">
-
-          <div className="left-column">
-
-            <div className="chart-panel">
-
-              <div className="chart-header">
-
-                <div className="chart-title">
-
-                  <div className="chart-symbol">
-                    XAUUSD
-                  </div>
-
-                  <div className="chart-info">
-                    GOLD SPOT
-                  </div>
-
-                </div>
-
-
-                <div className="timeframes">
-
-                  <button>
-                    1m
-                  </button>
-
-                  <button className="selected">
-                    5m
-                  </button>
-
-                  <button>
-                    15m
-                  </button>
-
-                  <button>
-                    30m
-                  </button>
-
-                  <button>
-                    1H
-                  </button>
-
-                </div>
-
-              </div>
-
-
-              <div className="chart-wrapper">
-                <TradingViewChart />
-              </div>
-
-            </div>
-
-
-            <AnalysisPanel
-              signal={signal}
-            />
-
-
-            <SignalHistory />
-
+        {error && (
+          <div className="error">
+            {error}
           </div>
-
-
-          <div className="right-column">
-
-            <ScoreCard
-              score={signal.score}
-            />
-
-
-            <SignalCard
-              signal={signal}
-              currentPrice={currentPrice}
-            />
-
-
-            <MarketStatus
-              currentPrice={currentPrice}
-            />
-
-          </div>
-
-        </section>
+        )}
 
       </main>
-
-
-      <div className="floating-status">
-
-        <span className="floating-dot" />
-
-        AI MARKET MONITOR
-
-        <span className="separator">
-          |
-        </span>
-
-        XAUUSD
-
-        <span className="separator">
-          |
-        </span>
-
-        {currentPrice.toFixed(2)}
-
-      </div>
 
     </div>
   );
