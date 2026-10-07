@@ -9,12 +9,11 @@ import * as signalR from "@microsoft/signalr";
 
 import {
   createChart,
-  CandlestickSeries,
 } from "lightweight-charts";
 
 
 // ============================================================
-// BIQUOTE CONFIG
+// BIQUOTE
 // ============================================================
 
 const BIQUOTE_BASE_URL = "https://biquote.io";
@@ -26,7 +25,7 @@ const SYMBOL = "XAUUSD";
 
 
 // ============================================================
-// TIMEFRAME CONFIG
+// TIMEFRAMES
 // ============================================================
 
 const TIMEFRAMES = {
@@ -52,14 +51,22 @@ function getTimeframeSeconds(timeframe) {
 
 
 function getCandleTime(timestamp, timeframe) {
-  const seconds = getTimeframeSeconds(timeframe);
+  const seconds =
+    getTimeframeSeconds(timeframe);
 
-  return Math.floor(timestamp / seconds) * seconds;
+  return (
+    Math.floor(timestamp / seconds) *
+    seconds
+  );
 }
 
 
 function formatPrice(price) {
-  if (price === null || price === undefined) {
+  if (
+    price === null ||
+    price === undefined ||
+    !Number.isFinite(Number(price))
+  ) {
     return "---";
   }
 
@@ -89,19 +96,27 @@ function formatTime(timestamp) {
 // ============================================================
 
 export default function App() {
-  const chartContainerRef = useRef(null);
 
-  const chartRef = useRef(null);
+  const chartContainerRef =
+    useRef(null);
 
-  const candleSeriesRef = useRef(null);
+  const chartRef =
+    useRef(null);
 
-  const connectionRef = useRef(null);
+  const candleSeriesRef =
+    useRef(null);
 
-  const currentCandleRef = useRef(null);
+  const connectionRef =
+    useRef(null);
 
-  const timeframeRef = useRef(DEFAULT_TIMEFRAME);
+  const currentCandleRef =
+    useRef(null);
 
-  const mountedRef = useRef(false);
+  const timeframeRef =
+    useRef(DEFAULT_TIMEFRAME);
+
+  const mountedRef =
+    useRef(false);
 
 
   const [timeframe, setTimeframe] =
@@ -133,11 +148,12 @@ export default function App() {
 
 
   // ==========================================================
-  // KEEP TIMEFRAME REF UPDATED
+  // TIMEFRAME REF
   // ==========================================================
 
   useEffect(() => {
-    timeframeRef.current = timeframe;
+    timeframeRef.current =
+      timeframe;
   }, [timeframe]);
 
 
@@ -146,96 +162,122 @@ export default function App() {
   // ==========================================================
 
   useEffect(() => {
+
     if (!chartContainerRef.current) {
       return;
     }
 
-    const container = chartContainerRef.current;
 
-    const chart = createChart(container, {
-      width: container.clientWidth,
-      height: container.clientHeight,
+    const container =
+      chartContainerRef.current;
 
-      layout: {
-        background: {
-          color: "#050505",
+
+    const chart =
+      createChart(container, {
+
+        width:
+          container.clientWidth,
+
+        height:
+          container.clientHeight,
+
+
+        layout: {
+          background: {
+            color: "#050505",
+          },
+
+          textColor: "#888888",
         },
 
-        textColor: "#8d8d8d",
-      },
 
-      grid: {
-        vertLines: {
-          color: "#111111",
+        grid: {
+          vertLines: {
+            color: "#111111",
+          },
+
+          horzLines: {
+            color: "#111111",
+          },
         },
 
-        horzLines: {
-          color: "#111111",
+
+        crosshair: {
+          mode: 1,
+
+          vertLine: {
+            color: "#444444",
+
+            width: 1,
+
+            style: 2,
+          },
+
+          horzLine: {
+            color: "#444444",
+
+            width: 1,
+
+            style: 2,
+          },
         },
-      },
 
-      crosshair: {
-        mode: 1,
 
-        vertLine: {
-          color: "#555555",
-          width: 1,
-          style: 2,
+        rightPriceScale: {
+          borderColor: "#222222",
+
+          scaleMargins: {
+            top: 0.08,
+
+            bottom: 0.08,
+          },
         },
 
-        horzLine: {
-          color: "#555555",
-          width: 1,
-          style: 2,
+
+        timeScale: {
+          borderColor: "#222222",
+
+          timeVisible: true,
+
+          secondsVisible: false,
+
+          rightOffset: 8,
+
+          barSpacing: 8,
+
+          minBarSpacing: 2,
         },
-      },
 
-      rightPriceScale: {
-        borderColor: "#222222",
 
-        scaleMargins: {
-          top: 0.08,
-          bottom: 0.08,
+        handleScroll: {
+          mouseWheel: true,
+
+          pressedMouseMove: true,
+
+          horzTouchDrag: true,
+
+          vertTouchDrag: true,
         },
-      },
-
-      timeScale: {
-        borderColor: "#222222",
-
-        timeVisible: true,
-
-        secondsVisible: false,
-
-        rightOffset: 8,
-
-        barSpacing: 8,
-
-        minBarSpacing: 2,
-      },
-
-      handleScroll: {
-        mouseWheel: true,
-
-        pressedMouseMove: true,
-
-        horzTouchDrag: true,
-
-        vertTouchDrag: true,
-      },
-
-      handleScale: {
-        axisPressedMouseMove: true,
-
-        mouseWheel: true,
-
-        pinch: true,
-      },
-    });
 
 
-    const series = chart.addSeries(
-      CandlestickSeries,
-      {
+        handleScale: {
+          axisPressedMouseMove: true,
+
+          mouseWheel: true,
+
+          pinch: true,
+        },
+      });
+
+
+    // ========================================================
+    // IMPORTANT:
+    // lightweight-charts 4.x
+    // ========================================================
+
+    const series =
+      chart.addCandlestickSeries({
+
         upColor: "#00c853",
 
         downColor: "#ff3b30",
@@ -251,33 +293,50 @@ export default function App() {
         priceLineVisible: true,
 
         lastValueVisible: true,
-      }
-    );
-
-
-    chartRef.current = chart;
-
-    candleSeriesRef.current = series;
-
-
-    const resizeObserver =
-      new ResizeObserver(() => {
-        if (!chartContainerRef.current) {
-          return;
-        }
-
-        chart.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-
-          height: chartContainerRef.current.clientHeight,
-        });
       });
 
 
-    resizeObserver.observe(container);
+    chartRef.current =
+      chart;
+
+    candleSeriesRef.current =
+      series;
+
+
+    // ========================================================
+    // RESPONSIVE
+    // ========================================================
+
+    const resizeObserver =
+      new ResizeObserver(() => {
+
+        if (
+          !chartContainerRef.current
+        ) {
+          return;
+        }
+
+
+        chart.applyOptions({
+          width:
+            chartContainerRef.current
+              .clientWidth,
+
+          height:
+            chartContainerRef.current
+              .clientHeight,
+        });
+
+      });
+
+
+    resizeObserver.observe(
+      container
+    );
 
 
     return () => {
+
       resizeObserver.disconnect();
 
       chart.remove();
@@ -286,6 +345,7 @@ export default function App() {
 
       candleSeriesRef.current = null;
     };
+
   }, []);
 
 
@@ -293,460 +353,688 @@ export default function App() {
   // LOAD HISTORICAL CANDLES
   // ==========================================================
 
-  const loadHistoricalCandles = useCallback(
-    async (selectedTimeframe) => {
-      if (!candleSeriesRef.current) {
-        return;
-      }
+  const loadHistoricalCandles =
+    useCallback(
+      async (selectedTimeframe) => {
 
-      try {
-        setError("");
-
-        const intervalMap = {
-          "1m": "1m",
-          "5m": "5m",
-          "15m": "15m",
-          "30m": "30m",
-          "1H": "1h",
-          "4H": "4h",
-          "1D": "1d",
-        };
-
-        const interval =
-          intervalMap[selectedTimeframe] || "1m";
-
-
-        const url =
-          `${BIQUOTE_BASE_URL}/api/${SYMBOL}/ohlc` +
-          `?interval=${interval}&limit=300`;
-
-
-        const response =
-          await fetch(url);
-
-
-        if (!response.ok) {
-          throw new Error(
-            `HTTP ${response.status}`
-          );
+        if (
+          !candleSeriesRef.current
+        ) {
+          return;
         }
 
 
-        const data =
-          await response.json();
+        try {
+
+          setError("");
 
 
-        if (!data.bars) {
-          throw new Error(
-            "Data candle tidak ditemukan."
-          );
-        }
-
-
-        const bars = data.bars
-          .slice()
-          .reverse()
-          .map((bar) => ({
-            time:
-              Math.floor(
-                new Date(bar.openTime).getTime() /
-                  1000
-              ),
-
-            open: Number(bar.open),
-
-            high: Number(bar.high),
-
-            low: Number(bar.low),
-
-            close: Number(bar.close),
-          }));
-
-
-        candleSeriesRef.current.setData(
-          bars
-        );
-
-
-        // ------------------------------------------------------
-        // Set current candle reference
-        // ------------------------------------------------------
-
-        const lastBar =
-          bars[bars.length - 1];
-
-
-        if (lastBar) {
-          currentCandleRef.current = {
-            time: lastBar.time,
-
-            open: lastBar.open,
-
-            high: lastBar.high,
-
-            low: lastBar.low,
-
-            close: lastBar.close,
+          const intervalMap = {
+            "1m": "1m",
+            "5m": "5m",
+            "15m": "15m",
+            "30m": "30m",
+            "1H": "1h",
+            "4H": "4h",
+            "1D": "1d",
           };
+
+
+          const interval =
+            intervalMap[
+              selectedTimeframe
+            ] || "1m";
+
+
+          const url =
+            `${BIQUOTE_BASE_URL}` +
+            `/api/${SYMBOL}/ohlc` +
+            `?interval=${interval}` +
+            `&limit=300`;
+
+
+          const response =
+            await fetch(url);
+
+
+          if (!response.ok) {
+            throw new Error(
+              `HTTP ${response.status}`
+            );
+          }
+
+
+          const data =
+            await response.json();
+
+
+          if (
+            !data ||
+            !Array.isArray(
+              data.bars
+            )
+          ) {
+            throw new Error(
+              "Format candle biquote tidak valid."
+            );
+          }
+
+
+          const bars =
+            data.bars
+              .slice()
+              .reverse()
+              .map((bar) => {
+
+                const timestamp =
+                  Math.floor(
+                    new Date(
+                      bar.openTime
+                    ).getTime() /
+                      1000
+                  );
+
+
+                return {
+                  time: timestamp,
+
+                  open: Number(
+                    bar.open
+                  ),
+
+                  high: Number(
+                    bar.high
+                  ),
+
+                  low: Number(
+                    bar.low
+                  ),
+
+                  close: Number(
+                    bar.close
+                  ),
+                };
+
+              })
+              .filter(
+                (bar) =>
+                  Number.isFinite(
+                    bar.time
+                  ) &&
+                  Number.isFinite(
+                    bar.open
+                  ) &&
+                  Number.isFinite(
+                    bar.high
+                  ) &&
+                  Number.isFinite(
+                    bar.low
+                  ) &&
+                  Number.isFinite(
+                    bar.close
+                  )
+              );
+
+
+          candleSeriesRef.current
+            .setData(bars);
+
+
+          // ==================================================
+          // CURRENT CANDLE
+          // ==================================================
+
+          const lastBar =
+            bars[bars.length - 1];
+
+
+          if (lastBar) {
+
+            currentCandleRef.current = {
+              time:
+                lastBar.time,
+
+              open:
+                lastBar.open,
+
+              high:
+                lastBar.high,
+
+              low:
+                lastBar.low,
+
+              close:
+                lastBar.close,
+            };
+
+          } else {
+
+            currentCandleRef.current =
+              null;
+
+          }
+
+
+          chartRef.current
+            ?.timeScale()
+            .fitContent();
+
+
+        } catch (err) {
+
+          console.error(
+            "Historical candle error:",
+            err
+          );
+
+
+          setError(
+            "Gagal mengambil historical XAUUSD."
+          );
+
+        }
+
+      },
+      []
+    );
+
+
+  // ==========================================================
+  // PROCESS TICK
+  // ==========================================================
+
+  const processTick =
+    useCallback(
+      (tick) => {
+
+        if (!tick) {
+          return;
         }
 
 
-        chartRef.current?.timeScale().fitContent();
+        if (
+          String(
+            tick.symbol
+          ).toUpperCase() !==
+          SYMBOL
+        ) {
+          return;
+        }
 
 
-      } catch (err) {
-        console.error(
-          "Historical candle error:",
-          err
-        );
-
-        setError(
-          "Gagal mengambil historical candle."
-        );
-      }
-    },
-    []
-  );
+        const mid =
+          Number(tick.mid);
 
 
-  // ==========================================================
-  // UPDATE CANDLE FROM TICK
-  // ==========================================================
-
-  const processTick = useCallback(
-    (tick) => {
-      if (!tick) {
-        return;
-      }
+        if (
+          !Number.isFinite(mid)
+        ) {
+          return;
+        }
 
 
-      if (
-        String(tick.symbol).toUpperCase() !==
-        SYMBOL
-      ) {
-        return;
-      }
+        const parsedTime =
+          new Date(
+            tick.timestamp
+          ).getTime();
 
 
-      const mid = Number(tick.mid);
+        if (
+          !Number.isFinite(
+            parsedTime
+          )
+        ) {
+          return;
+        }
 
 
-      if (!Number.isFinite(mid)) {
-        return;
-      }
+        const currentTime =
+          Math.floor(
+            parsedTime / 1000
+          );
 
 
-      const currentTime =
-        Math.floor(
-          new Date(tick.timestamp).getTime() /
-            1000
-        );
+        const selectedTimeframe =
+          timeframeRef.current;
 
 
-      if (!Number.isFinite(currentTime)) {
-        return;
-      }
+        const candleTime =
+          getCandleTime(
+            currentTime,
+            selectedTimeframe
+          );
 
 
-      const selectedTimeframe =
-        timeframeRef.current;
+        // ====================================================
+        // LIVE PRICE
+        // ====================================================
+
+        if (
+          mountedRef.current
+        ) {
+
+          setPrice(mid);
 
 
-      const candleTime =
-        getCandleTime(
-          currentTime,
-          selectedTimeframe
-        );
+          if (
+            tick.bid !==
+            undefined
+          ) {
+            setBid(
+              Number(
+                tick.bid
+              )
+            );
+          }
 
 
-      // ========================================================
-      // UPDATE UI PRICE
-      // ========================================================
-
-      if (mountedRef.current) {
-        setPrice(mid);
-
-        setBid(
-          tick.bid !== undefined
-            ? Number(tick.bid)
-            : null
-        );
-
-        setAsk(
-          tick.ask !== undefined
-            ? Number(tick.ask)
-            : null
-        );
-
-        setSpread(
-          tick.spread !== undefined
-            ? Number(tick.spread)
-            : null
-        );
-
-        setLastTickTime(
-          tick.timestamp
-        );
-
-        setTickCount(
-          (value) => value + 1
-        );
-      }
+          if (
+            tick.ask !==
+            undefined
+          ) {
+            setAsk(
+              Number(
+                tick.ask
+              )
+            );
+          }
 
 
-      // ========================================================
-      // CURRENT CANDLE
-      // ========================================================
+          if (
+            tick.spread !==
+            undefined
+          ) {
+            setSpread(
+              Number(
+                tick.spread
+              )
+            );
+          }
 
-      const existing =
-        currentCandleRef.current;
+
+          setLastTickTime(
+            tick.timestamp
+          );
 
 
-      // ========================================================
-      // NEW CANDLE
-      // ========================================================
+          setTickCount(
+            (value) =>
+              value + 1
+          );
 
-      if (
-        !existing ||
-        candleTime > existing.time
-      ) {
-        const newCandle = {
-          time: candleTime,
+        }
 
-          open: mid,
 
-          high: mid,
+        const existing =
+          currentCandleRef.current;
 
-          low: mid,
 
-          close: mid,
+        // ====================================================
+        // FIRST CANDLE
+        // ====================================================
+
+        if (!existing) {
+
+          const newCandle = {
+
+            time:
+              candleTime,
+
+            open:
+              mid,
+
+            high:
+              mid,
+
+            low:
+              mid,
+
+            close:
+              mid,
+
+          };
+
+
+          currentCandleRef.current =
+            newCandle;
+
+
+          candleSeriesRef.current
+            ?.update(
+              newCandle
+            );
+
+
+          return;
+        }
+
+
+        // ====================================================
+        // NEW CANDLE
+        // ====================================================
+
+        if (
+          candleTime >
+          existing.time
+        ) {
+
+          const newCandle = {
+
+            time:
+              candleTime,
+
+            open:
+              mid,
+
+            high:
+              mid,
+
+            low:
+              mid,
+
+            close:
+              mid,
+
+          };
+
+
+          currentCandleRef.current =
+            newCandle;
+
+
+          candleSeriesRef.current
+            ?.update(
+              newCandle
+            );
+
+
+          return;
+        }
+
+
+        // ====================================================
+        // OLD TICK
+        // ====================================================
+
+        if (
+          candleTime <
+          existing.time
+        ) {
+          return;
+        }
+
+
+        // ====================================================
+        // UPDATE CURRENT CANDLE
+        // ====================================================
+
+        const updatedCandle = {
+
+          time:
+            existing.time,
+
+          open:
+            existing.open,
+
+          high:
+            Math.max(
+              existing.high,
+              mid
+            ),
+
+          low:
+            Math.min(
+              existing.low,
+              mid
+            ),
+
+          close:
+            mid,
+
         };
 
 
         currentCandleRef.current =
-          newCandle;
+          updatedCandle;
 
 
-        candleSeriesRef.current?.update(
-          newCandle
-        );
+        candleSeriesRef.current
+          ?.update(
+            updatedCandle
+          );
 
-
-        return;
-      }
-
-
-      // ========================================================
-      // IGNORE OLD TICK
-      // ========================================================
-
-      if (
-        candleTime <
-        existing.time
-      ) {
-        return;
-      }
-
-
-      // ========================================================
-      // UPDATE EXISTING CANDLE
-      // ========================================================
-
-      const updatedCandle = {
-        time: existing.time,
-
-        open: existing.open,
-
-        high: Math.max(
-          existing.high,
-          mid
-        ),
-
-        low: Math.min(
-          existing.low,
-          mid
-        ),
-
-        close: mid,
-      };
-
-
-      currentCandleRef.current =
-        updatedCandle;
-
-
-      candleSeriesRef.current?.update(
-        updatedCandle
-      );
-    },
-    []
-  );
+      },
+      []
+    );
 
 
   // ==========================================================
-  // CONNECT BIQUOTE WEBSOCKET
+  // CONNECT WEBSOCKET
   // ==========================================================
 
-  const connectWebSocket = useCallback(
-    async () => {
-      try {
-        setConnectionStatus(
-          "CONNECTING"
-        );
+  const connectWebSocket =
+    useCallback(
+      async () => {
 
-        setError("");
+        try {
 
+          setConnectionStatus(
+            "CONNECTING"
+          );
 
-        // ------------------------------------------------------
-        // Remove previous connection
-        // ------------------------------------------------------
-
-        if (connectionRef.current) {
-          try {
-            await connectionRef.current.stop();
-          } catch {
-            // Ignore
-          }
-        }
+          setError("");
 
 
-        // ------------------------------------------------------
-        // Create SignalR connection
-        // ------------------------------------------------------
+          // ==================================================
+          // STOP OLD CONNECTION
+          // ==================================================
 
-        const connection =
-          new signalR.HubConnectionBuilder()
-            .withUrl(BIQUOTE_WS_URL)
-            .withAutomaticReconnect([
-              0,
-              2000,
-              5000,
-              10000,
-              30000,
-            ])
-            .configureLogging(
-              signalR.LogLevel.Warning
-            )
-            .build();
+          if (
+            connectionRef.current
+          ) {
 
+            try {
 
-        connectionRef.current =
-          connection;
+              await connectionRef.current
+                .stop();
 
-
-        // ------------------------------------------------------
-        // Receive tick
-        // ------------------------------------------------------
-
-        connection.on(
-          "ReceiveTick",
-          (tick) => {
-            processTick(tick);
-          }
-        );
-
-
-        // ------------------------------------------------------
-        // Connection events
-        // ------------------------------------------------------
-
-        connection.onreconnecting(() => {
-          if (mountedRef.current) {
-            setConnectionStatus(
-              "RECONNECTING"
-            );
-          }
-        });
-
-
-        connection.onreconnected(
-          async () => {
-            if (!mountedRef.current) {
-              return;
+            } catch {
+              // ignore
             }
 
+          }
+
+
+          // ==================================================
+          // SIGNALR
+          // ==================================================
+
+          const connection =
+            new signalR.HubConnectionBuilder()
+              .withUrl(
+                BIQUOTE_WS_URL
+              )
+              .withAutomaticReconnect([
+                0,
+                2000,
+                5000,
+                10000,
+                30000,
+              ])
+              .configureLogging(
+                signalR.LogLevel.Warning
+              )
+              .build();
+
+
+          connectionRef.current =
+            connection;
+
+
+          // ==================================================
+          // RECEIVE TICK
+          // ==================================================
+
+          connection.on(
+            "ReceiveTick",
+            (tick) => {
+
+              processTick(
+                tick
+              );
+
+            }
+          );
+
+
+          // ==================================================
+          // RECONNECTING
+          // ==================================================
+
+          connection.onreconnecting(
+            () => {
+
+              if (
+                mountedRef.current
+              ) {
+
+                setConnectionStatus(
+                  "RECONNECTING"
+                );
+
+              }
+
+            }
+          );
+
+
+          // ==================================================
+          // RECONNECTED
+          // ==================================================
+
+          connection.onreconnected(
+            async () => {
+
+              if (
+                !mountedRef.current
+              ) {
+                return;
+              }
+
+
+              try {
+
+                await connection.invoke(
+                  "Subscribe",
+                  [SYMBOL]
+                );
+
+
+                setConnectionStatus(
+                  "LIVE"
+                );
+
+              } catch (
+                reconnectError
+              ) {
+
+                console.error(
+                  "Resubscribe error:",
+                  reconnectError
+                );
+
+              }
+
+            }
+          );
+
+
+          // ==================================================
+          // CLOSED
+          // ==================================================
+
+          connection.onclose(
+            () => {
+
+              if (
+                mountedRef.current
+              ) {
+
+                setConnectionStatus(
+                  "DISCONNECTED"
+                );
+
+              }
+
+            }
+          );
+
+
+          // ==================================================
+          // START
+          // ==================================================
+
+          await connection.start();
+
+
+          // ==================================================
+          // SUBSCRIBE XAUUSD
+          // ==================================================
+
+          await connection.invoke(
+            "Subscribe",
+            [SYMBOL]
+          );
+
+
+          if (
+            mountedRef.current
+          ) {
 
             setConnectionStatus(
               "LIVE"
             );
 
-
-            try {
-              await connection.invoke(
-                "Subscribe",
-                [SYMBOL]
-              );
-            } catch (err) {
-              console.error(
-                "Subscribe error after reconnect:",
-                err
-              );
-            }
           }
-        );
+
+        } catch (err) {
+
+          console.error(
+            "biquote WebSocket error:",
+            err
+          );
 
 
-        connection.onclose(() => {
-          if (mountedRef.current) {
+          if (
+            mountedRef.current
+          ) {
+
             setConnectionStatus(
-              "DISCONNECTED"
+              "ERROR"
             );
+
+
+            setError(
+              "Gagal terhubung ke biquote WebSocket."
+            );
+
           }
-        });
 
-
-        // ------------------------------------------------------
-        // Start connection
-        // ------------------------------------------------------
-
-        await connection.start();
-
-
-        // ------------------------------------------------------
-        // Subscribe XAUUSD
-        // ------------------------------------------------------
-
-        await connection.invoke(
-          "Subscribe",
-          [SYMBOL]
-        );
-
-
-        if (mountedRef.current) {
-          setConnectionStatus(
-            "LIVE"
-          );
         }
 
-
-      } catch (err) {
-        console.error(
-          "WebSocket error:",
-          err
-        );
-
-
-        if (mountedRef.current) {
-          setConnectionStatus(
-            "ERROR"
-          );
-
-          setError(
-            "WebSocket biquote gagal terhubung."
-          );
-        }
-      }
-    },
-    [processTick]
-  );
+      },
+      [processTick]
+    );
 
 
   // ==========================================================
-  // INITIAL LOAD
+  // INITIALIZE
   // ==========================================================
 
   useEffect(() => {
-    mountedRef.current = true;
+
+    mountedRef.current =
+      true;
 
 
     loadHistoricalCandles(
@@ -758,18 +1046,27 @@ export default function App() {
 
 
     return () => {
-      mountedRef.current = false;
+
+      mountedRef.current =
+        false;
 
 
-      if (connectionRef.current) {
+      if (
+        connectionRef.current
+      ) {
+
         connectionRef.current
           .stop()
           .catch(() => {});
+
       }
 
 
-      connectionRef.current = null;
+      connectionRef.current =
+        null;
+
     };
+
   }, [
     connectWebSocket,
     loadHistoricalCandles,
@@ -777,19 +1074,25 @@ export default function App() {
 
 
   // ==========================================================
-  // TIMEFRAME CHANGE
+  // CHANGE TIMEFRAME
   // ==========================================================
 
   useEffect(() => {
-    if (!mountedRef.current) {
+
+    if (
+      !mountedRef.current
+    ) {
       return;
     }
 
 
-    currentCandleRef.current = null;
+    currentCandleRef.current =
+      null;
 
 
-    loadHistoricalCandles(timeframe);
+    loadHistoricalCandles(
+      timeframe
+    );
 
   }, [
     timeframe,
@@ -798,25 +1101,21 @@ export default function App() {
 
 
   // ==========================================================
-  // RENDER
+  // UI
   // ==========================================================
 
   return (
     <div className="app">
 
-      {/* ======================================================
-          TOP BAR
-      ====================================================== */}
-
       <header className="topbar">
 
         <div className="symbol">
 
-          <span className="symbol-name">
+          <strong>
             XAUUSD
-          </span>
+          </strong>
 
-          <span className="symbol-label">
+          <span>
             GOLD / US DOLLAR
           </span>
 
@@ -825,35 +1124,40 @@ export default function App() {
 
         <div className="price-block">
 
-          <span className="main-price">
+          <strong>
             {formatPrice(price)}
-          </span>
+          </strong>
 
-          <span className="price-label">
+          <span>
             MID
           </span>
 
         </div>
 
 
-        <div className="quote">
+        <div className="quotes">
 
           <div>
             <span>BID</span>
+
             <strong>
               {formatPrice(bid)}
             </strong>
           </div>
 
+
           <div>
             <span>ASK</span>
+
             <strong>
               {formatPrice(ask)}
             </strong>
           </div>
 
+
           <div>
             <span>SPREAD</span>
+
             <strong>
               {spread !== null
                 ? spread.toFixed(2)
@@ -864,55 +1168,57 @@ export default function App() {
         </div>
 
 
-        <div className="status">
+        <div className="connection">
 
           <span
-            className={`status-dot ${
-              connectionStatus === "LIVE"
-                ? "live"
-                : ""
-            }`}
+            className={
+              connectionStatus ===
+              "LIVE"
+                ? "dot live"
+                : "dot"
+            }
           />
 
-          <span>
-            {connectionStatus}
-          </span>
+          {connectionStatus}
 
         </div>
 
       </header>
 
 
-      {/* ======================================================
-          TOOLBAR
-      ====================================================== */}
-
       <div className="toolbar">
 
         <div className="timeframes">
 
-          {Object.keys(TIMEFRAMES).map(
+          {Object.keys(
+            TIMEFRAMES
+          ).map(
             (item) => (
+
               <button
                 key={item}
                 className={
-                  timeframe === item
+                  timeframe ===
+                  item
                     ? "active"
                     : ""
                 }
-                onClick={() => {
-                  setTimeframe(item);
-                }}
+                onClick={() =>
+                  setTimeframe(
+                    item
+                  )
+                }
               >
                 {item}
               </button>
+
             )
           )}
 
         </div>
 
 
-        <div className="info">
+        <div className="tick-info">
 
           <span>
             {tickCount.toLocaleString(
@@ -922,7 +1228,9 @@ export default function App() {
 
           <span>
             {lastTickTime
-              ? formatTime(lastTickTime)
+              ? formatTime(
+                  lastTickTime
+                )
               : "--:--:--"}{" "}
             WIB
           </span>
@@ -932,14 +1240,12 @@ export default function App() {
       </div>
 
 
-      {/* ======================================================
-          CHART
-      ====================================================== */}
-
-      <main className="chart-wrapper">
+      <main className="chart-container">
 
         <div
-          ref={chartContainerRef}
+          ref={
+            chartContainerRef
+          }
           className="chart"
         />
 
