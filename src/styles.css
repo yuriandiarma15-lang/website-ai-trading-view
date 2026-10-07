@@ -1,8 +1,6 @@
-:root {
-  background: #050505;
-  color: #ffffff;
+* {
+  box-sizing: border-box;
 }
-
 
 html,
 body,
@@ -13,18 +11,20 @@ body,
   padding: 0;
 }
 
-
 body {
   background: #050505;
   color: #ffffff;
+  font-family:
+    Inter,
+    Arial,
+    sans-serif;
+
   overflow: hidden;
 }
 
-
 button {
-  font: inherit;
+  font-family: inherit;
 }
-
 
 .app {
   width: 100%;
@@ -34,8 +34,6 @@ button {
   flex-direction: column;
 
   background: #050505;
-
-  color: #eeeeee;
 }
 
 
@@ -44,7 +42,7 @@ button {
    ============================================================ */
 
 .topbar {
-  height: 62px;
+  height: 60px;
 
   flex-shrink: 0;
 
@@ -53,75 +51,64 @@ button {
 
   padding: 0 18px;
 
-  border-bottom: 1px solid #191919;
-
   background: #080808;
+
+  border-bottom: 1px solid #191919;
 }
 
 
-/* ============================================================
-   SYMBOL
-   ============================================================ */
-
 .symbol {
+  min-width: 220px;
+
   display: flex;
   align-items: baseline;
 
-  gap: 10px;
-
-  min-width: 220px;
+  gap: 9px;
 }
 
 
-.symbol-name {
+.symbol strong {
   font-size: 20px;
 
   font-weight: 700;
 
   letter-spacing: 0.5px;
-
-  color: #ffffff;
 }
 
 
-.symbol-label {
-  font-size: 10px;
+.symbol span {
+  color: #666;
 
-  color: #666666;
+  font-size: 9px;
 
   letter-spacing: 1px;
 }
 
 
-/* ============================================================
-   PRICE
-   ============================================================ */
-
 .price-block {
   display: flex;
   align-items: baseline;
 
-  gap: 8px;
+  gap: 7px;
 
   margin-right: 35px;
 }
 
 
-.main-price {
-  font-size: 22px;
+.price-block strong {
+  font-size: 21px;
 
   font-weight: 600;
 
-  font-variant-numeric: tabular-nums;
-
-  color: #ffffff;
+  font-variant-numeric:
+    tabular-nums;
 }
 
 
-.price-label {
-  font-size: 9px;
+.price-block span {
+  color: #555;
 
-  color: #666666;
+  font-size: 9px;
 
   letter-spacing: 1px;
 }
@@ -131,49 +118,50 @@ button {
    QUOTES
    ============================================================ */
 
-.quote {
+.quotes {
   display: flex;
 
   align-items: center;
 
-  gap: 25px;
+  gap: 24px;
 }
 
 
-.quote > div {
+.quotes > div {
   display: flex;
 
   align-items: center;
 
-  gap: 8px;
+  gap: 7px;
 }
 
 
-.quote span {
+.quotes span {
+  color: #555;
+
   font-size: 9px;
-
-  color: #555555;
 
   letter-spacing: 1px;
 }
 
 
-.quote strong {
+.quotes strong {
+  color: #bdbdbd;
+
   font-size: 12px;
 
   font-weight: 500;
 
-  color: #bdbdbd;
-
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric:
+    tabular-nums;
 }
 
 
 /* ============================================================
-   STATUS
+   CONNECTION
    ============================================================ */
 
-.status {
+.connection {
   margin-left: auto;
 
   display: flex;
@@ -182,29 +170,30 @@ button {
 
   gap: 7px;
 
-  font-size: 10px;
+  color: #666;
 
-  color: #777777;
+  font-size: 9px;
 
   letter-spacing: 1px;
 }
 
 
-.status-dot {
+.dot {
   width: 7px;
   height: 7px;
 
   border-radius: 50%;
 
-  background: #555555;
+  background: #555;
 }
 
 
-.status-dot.live {
+.dot.live {
   background: #00c853;
 
   box-shadow:
-    0 0 8px rgba(0, 200, 83, 0.7);
+    0 0 8px
+    rgba(0, 200, 83, 0.7);
 }
 
 
@@ -213,7 +202,7 @@ button {
    ============================================================ */
 
 .toolbar {
-  height: 42px;
+  height: 40px;
 
   flex-shrink: 0;
 
@@ -223,18 +212,16 @@ button {
 
   justify-content: space-between;
 
-  padding: 0 12px;
-
-  border-bottom: 1px solid #171717;
+  padding: 0 10px;
 
   background: #070707;
+
+  border-bottom: 1px solid #171717;
 }
 
 
 .timeframes {
   display: flex;
-
-  align-items: center;
 
   gap: 2px;
 }
@@ -243,50 +230,49 @@ button {
 .timeframes button {
   border: 0;
 
-  outline: 0;
+  outline: none;
 
   background: transparent;
 
-  color: #666666;
-
-  padding: 6px 10px;
-
-  font-size: 11px;
+  color: #666;
 
   cursor: pointer;
 
+  padding: 6px 10px;
+
   border-radius: 3px;
+
+  font-size: 11px;
 }
 
 
 .timeframes button:hover {
-  color: #bbbbbb;
+  color: #ccc;
 
-  background: #111111;
+  background: #111;
 }
 
 
 .timeframes button.active {
-  color: #ffffff;
+  color: #fff;
 
   background: #1a1a1a;
 }
 
 
-.info {
+.tick-info {
   display: flex;
 
   align-items: center;
 
   gap: 15px;
 
+  color: #555;
+
   font-size: 9px;
 
-  color: #555555;
-
-  letter-spacing: 0.5px;
-
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric:
+    tabular-nums;
 }
 
 
@@ -294,7 +280,7 @@ button {
    CHART
    ============================================================ */
 
-.chart-wrapper {
+.chart-container {
   position: relative;
 
   flex: 1;
@@ -326,21 +312,18 @@ button {
   position: absolute;
 
   left: 50%;
-
   top: 50%;
 
-  transform: translate(
-    -50%,
-    -50%
-  );
+  transform:
+    translate(-50%, -50%);
 
   padding: 12px 18px;
 
-  border: 1px solid #333333;
+  background: #111;
 
-  background: #101010;
+  border: 1px solid #333;
 
-  color: #ff6b6b;
+  color: #ff6666;
 
   font-size: 12px;
 
@@ -368,55 +351,57 @@ button {
 
     flex-direction: column;
 
+    align-items: flex-start;
+
     gap: 1px;
   }
 
 
-  .symbol-name {
+  .symbol strong {
     font-size: 16px;
   }
 
 
-  .symbol-label {
-    font-size: 8px;
+  .symbol span {
+    font-size: 7px;
   }
 
 
   .price-block {
-    margin-left: 20px;
+    margin-left: 18px;
 
     margin-right: 15px;
   }
 
 
-  .main-price {
-    font-size: 18px;
+  .price-block strong {
+    font-size: 17px;
   }
 
 
-  .quote {
-    gap: 10px;
+  .quotes {
+    gap: 9px;
   }
 
 
-  .quote > div {
+  .quotes > div {
     flex-direction: column;
 
     gap: 1px;
   }
 
 
-  .quote span {
+  .quotes span {
     font-size: 7px;
   }
 
 
-  .quote strong {
-    font-size: 10px;
+  .quotes strong {
+    font-size: 9px;
   }
 
 
-  .status {
+  .connection {
     display: none;
   }
 
@@ -424,12 +409,7 @@ button {
   .toolbar {
     height: 38px;
 
-    padding: 0 6px;
-  }
-
-
-  .timeframes {
-    gap: 0;
+    padding: 0 5px;
   }
 
 
@@ -440,7 +420,7 @@ button {
   }
 
 
-  .info {
+  .tick-info {
     display: none;
   }
 }
